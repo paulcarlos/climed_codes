@@ -51,22 +51,22 @@ for (i in 1:nrow(tcdf)) {
   
   if (!file.exists(filnm)) {
     
-    if (!is.null(dim(ar1)) & length(dim(ar1))>1) { # CHECK IF NOT EMPTY; ONLY LAND HAVE DATA
+    if (!is.null(dim(ar1)) & length(dim(ar1))==3) { # CHECK IF NOT EMPTY; ONLY LAND HAVE DATA; LIMIT TO 3-DIMENSIONAL DATA
     
       if (any(lon<(-160)) & any(lon>160)) { # SPLIT MATRIX/RASTER FOR ACROSS PACIFIC OCEAN FOLLOWING WGS84
         
-        for (j in 1:length(hrv)) { # hourly loop
+        for (j in 1:length(hrv)) { # HOURLY LOOP, ESSENTIAL TO RESAMPLE PER HOUR, RESAMPLING FAILS FOR MULTILAYERED RASTER
           tim1 <- hrv[j] 
           m1 <- ar1[,,j] 
           if (length(dim(m1))==2) {
-            dimnames(m1) <- list(lon,lat)
+            dimnames(m1) <- list(lon,lat) # ADD DIMENSION NAME NEEDED WHEN DATA SPLIT HAS OTHER OR BOTH HALVES HAVE SINGLE LON OR LAT
           } else {
             stop(paste0(id," incorrect lon & lat for ",tim1))
           }
           
-          if (sum(m1,na.rm=TRUE)>0) {
+          if (sum(m1,na.rm=TRUE)>0) { # SAVE FILES WITH DATA ONLY
             
-            fnm1 <- paste0(fhrly,id,"/")
+            fnm1 <- paste0(fhrly,id,"/") # FILE DIRECTORY FOR HOURLY VERSION
             if (!dir.exists(fnm1)) {
               dir.create(fnm1)
             }
@@ -74,12 +74,13 @@ for (i in 1:nrow(tcdf)) {
             fnm2 <- paste0(fnm1,var,"_",mod,"_",id,"_",substr(tim1,1,10),"_",sprintf("%02d",hour(tim1)),"HR.tif")
             
             if (!file.exists(fnm2)) {
-              neglon <- m1[lon1,]
-              poslon <- m1[lon2,]
-              if (length(dim(neglon))>1 & length(dim(poslon))>1) {
+              neglon <- m1[lon1,] # SPLIT NEGATIVE LONGITUDE
+              poslon <- m1[lon2,] # SPLIT POSITIVE LONGITUDE
+              
+              if (length(dim(neglon))>1 & length(dim(poslon))>1) { # IF BOTH POSITIVE AND NEGATIVE SIDES HAVE MORE THAN 1 LONGITUDE AND LATITUDES
                 rneg <- rast(apply(t(neglon),2,rev),crs=crs("OGC:CRS84"),extent=ext(min(lon[lon1]),max(lon[lon1]),min(lat),max(lat)))
                 rpos <- rast(apply(t(poslon),2,rev),crs=crs("OGC:CRS84"),extent=ext(min(lon[lon2]),max(lon[lon2]),min(lat),max(lat)))
-                resneg <- resample(rneg,wras,method="near")
+                resneg <- resample(rneg,wras,method="near") # RESAMPLING METHOD OF NEAR WAS SELECTED TO KEEP WIND SPEED VALUES
                 respos <- resample(rpos,wras,method="near")
                 r2 <- merge(resneg,respos)
                 terra::time(r2) <- tim1; names(r2) <- var; terra::units(r2) <- short_vnm
@@ -88,7 +89,7 @@ for (i in 1:nrow(tcdf)) {
                 
                 rm(rneg,rpos,resneg,respos);gc()
                 
-              } else if (is.vector(neglon) & is.vector(poslon)) {
+              } else if (is.vector(neglon) & is.vector(poslon)) { # FOR SINGLE LON & LAT DATA
                 pt1 <- data.frame("lon"=as.numeric(lon[lon1]),"lat"=as.numeric(names(neglon)))
                 pt2 <- vect(pt1,geom=c("lon","lat"),crs="OGC:CRS84")
                 celn <- data.frame(terra::cells(wras,pt2,weights=T,exact=T,small=T))
@@ -108,7 +109,7 @@ for (i in 1:nrow(tcdf)) {
                 
                 rm(pt1,pt2,celn,rpos,respos,rneg,resneg);gc()
                 
-              } else if (is.vector(neglon)) {
+              } else if (is.vector(neglon)) { # IF NEGATIVE LONGITUDE SIDE HAS SINGLE GRID, WHILE POSITIVE SIDE HAS MORE THAN 1 LON & LAT
                 pt1 <- data.frame("lon"=as.numeric(lon[lon1]),"lat"=as.numeric(names(neglon)))
                 pt2 <- vect(pt1,geom=c("lon","lat"),crs="OGC:CRS84")
                 celn <- data.frame(terra::cells(wras,pt2,weights=T,exact=T,small=T))
@@ -122,7 +123,7 @@ for (i in 1:nrow(tcdf)) {
                 
                 rm(pt1,pt2,celn,rpos,respos);gc()
                 
-              } else if (is.vector(poslon)) {
+              } else if (is.vector(poslon)) { # IF POSITIVE LONGITUDE SIDE HAS SINGLE GRID, WHILE NEGATIVE SIDE HAS MORE THAN 1 LON & LAT
                 pt1 <- data.frame("lon"=as.numeric(lon[lon2]),"lat"=as.numeric(names(poslon)))
                 pt2 <- vect(pt1,geom=c("lon","lat"),crs="OGC:CRS84")
                 celn <- data.frame(terra::cells(wras,pt2,weights=T,exact=T,small=T))
@@ -136,25 +137,21 @@ for (i in 1:nrow(tcdf)) {
                 
                 rm(pt1,pt2,celn,rneg,resneg);gc()
               }
-            
             }
-          
           } 
-          
           cat(j," ")
         }
         
         fnm3 <- list.files(fnm1,pattern=paste0(var,"_",mod),full.names=TRUE)
-        r3 <- terra::rast(fnm3)
+        r3 <- terra::rast(fnm3) # COMPILE HOURLY RASTERS FOR SAME TC ID
         writeCDF(r3, filename=paste0(fsav,id,"/",var,"_",mod,"_",id,".nc"),
                  varname=var, longname=long_vnm, unit=short_vnm, atts=c(paste0("model=",mod1)),
-                 overwrite=TRUE, prec="float", compression=5)
+                 overwrite=TRUE, prec="float", compression=5) 
         rm(fnm3,r3);gc()
         
       } else { # NO CROSSING OVER WGS 84 CRS
         
         for (j in 1:length(hrv)) { # hourly loop
-          #j=5
           tim1 <- hrv[j] 
           m1 <- ar1[,,j] 
           
@@ -186,11 +183,15 @@ for (i in 1:nrow(tcdf)) {
         rm(fnm3,r3);gc()
       }
       
-    } else if (length(lon)==1 & sum(ar1,na.rm=TRUE)>0) { # a vector of single grid values
+    } else if (length(lon)==1 | length(lat)==1 & sum(ar1,na.rm=TRUE)>0 | length(dim(ar1))==2) { # SINGLE GRID TC RAIN FOR EITHER/BOTH LON & LAT, NO 3D ARRAY BUT EITHER MATRIX OR VECTOR
       
       for (j in 1:length(hrv)) {
-        #j=5
-        m1 <- ar1[j]
+
+        if (length(dim(ar1))==2) {
+          m1 <- ar1[,j]
+        } else {
+          m1 <- ar1[j]
+        }
         tim1 <- hrv[j]
         
         if (sum(m1,na.rm=TRUE)>0) {
@@ -200,6 +201,7 @@ for (i in 1:nrow(tcdf)) {
             dir.create(fnm1)
           }
           fnm2 <- paste0(fnm1,var,"_",mod,"_",id,"_",substr(tim1,1,10),"_",sprintf("%02d",hour(tim1)),"HR.tif")
+          
           if (!file.exists(fnm2)) {
             pt1 <- data.frame("lon"=lon,"lat"=lat)
             pt2 <- vect(pt1,geom=c("lon","lat"),crs="OGC:CRS84")
