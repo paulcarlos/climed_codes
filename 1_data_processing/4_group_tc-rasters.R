@@ -1,26 +1,24 @@
-setwd("D:/R/gridded-data_manipulation/")
-
 library(terra)
 
 # guiding/reference dataframe
-#ref <- readRDS("0_data/tc_dataframe_isimip3a_1999-12_2021-12.rds")
 ref <- readRDS("0_data/tc_dataframe_isimip3a_2000-2021.rds")
-#table(substr(ref$basin,1,2))
 
 # objects
-floc <- "G:/base_rasters/isimip3a/trop_cyclone/individual/"
-fsav <- "G:/base_rasters/isimip3a/trop_cyclone/pooled/"
+floc <- "" # path of individual processed TCs into global rasters
+fsav <- "" # path to save pooled rasters
 basin <- unique(substr(ref$basin,1,2))
 
 # select variable and model
 #var <- "wind"; mod <- "er11"
 var <- "rain"; mod <- "er11"
+#var <- "wind"; mod <- "h08"
+#var <- "rain"; mod <- "h08"
 
 # loop aggregate
 #i=basin[1]
 thr <- 300
 ilist <- list()
-for (i in basin) {
+for (i in basin) { # generate single raster per TC per basin
   cat("\n",i,"\n")
   file1 <- list.files(floc,pattern=paste0(var,"_",mod,"_",i))
   slist <- list()
@@ -39,7 +37,7 @@ for (i in basin) {
         f2 <- file1[sgrp[k]]
         r2 <- rast(paste0(floc,f2))
         #r2[is.na(r2)] <- 0
-        r1 <- sum(r1,r2,na.rm=TRUE)
+        r1 <- sum(r1,r2,na.rm=TRUE) # sum is fastest, choosing max will be too slow
         #cat(k," ")
         v2 <- gsub(paste0(var,"_",mod,"_",i,"_|.tif"),"",f2)
         v1 <- c(v1,v2)
@@ -69,8 +67,6 @@ for (i in basin) {
 }
 saveRDS(ilist,paste0(fsav,var,"_",mod,"_list-tcid.rds"))
 
-
-
 # pile up all rasters
 lf <- list.files(fsav,pattern=paste0("^",var,"_",mod,".*\\.tif$"))
 r1 <- rast(paste0(fsav,lf[1]))
@@ -87,17 +83,3 @@ plot(r1)
   
 rm(list=ls());gc()
 
-
-# check
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/wind_er11_WP_grp2.tif")
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/wind_er11_NI_grp1.tif")
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/wind_er11_SI_grp2.tif")
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/wind_er11_SP_grp1.tif")
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/wind_er11_EP_grp2.tif")
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/wind_er11_NA_grp2.tif")
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/wind_er11_SA_grp1.tif")
-r1 <- rast("G:/base_rasters/isimip3a/trop_cyclone/pooled/rain_er11_SA_grp1.tif")
-plot(r1)
-
-
-rm(list=ls());gc()
