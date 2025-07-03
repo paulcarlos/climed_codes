@@ -3,10 +3,10 @@ library(ncdf4)
 library(lubridate)
 
 # import
-nc <- nc_open("tracks_obsclim_historical_1950_2021.nc")
+nc <- nc_open("tracks_obsclim_historical_1950_2021.nc") # download from ISIMIP repository
 
 # world map; for visualization purposes
-wmap <- vect("ne_10m_land.shp")
+wmap <- vect("ne_10m_land.shp") # download from Natural Earth website
 
 # get IDs and lon lat
 sid <- ncvar_get(nc,varid="sid")
